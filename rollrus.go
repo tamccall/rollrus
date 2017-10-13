@@ -171,6 +171,9 @@ func (r *Hook) Fire(entry *logrus.Entry) error {
 }
 
 func (r *Hook) report(entry *logrus.Entry, cause error, m map[string]string, trace []uintptr) (err error) {
+	e := fmt.Errorf(entry.Message)
+	m["error"] = cause.Error()
+
 	hasTrace := len(trace) > 0
 	level := entry.Level
 
@@ -178,19 +181,19 @@ func (r *Hook) report(entry *logrus.Entry, cause error, m map[string]string, tra
 
 	switch {
 	case hasTrace && level == logrus.FatalLevel:
-		_, err = r.Client.CriticalStack(cause, trace, m)
+		_, err = r.Client.CriticalStack(e, trace, m)
 	case hasTrace && level == logrus.PanicLevel:
-		_, err = r.Client.CriticalStack(cause, trace, m)
+		_, err = r.Client.CriticalStack(e, trace, m)
 	case hasTrace && level == logrus.ErrorLevel:
-		_, err = r.Client.ErrorStack(cause, trace, m)
+		_, err = r.Client.ErrorStack(e, trace, m)
 	case hasTrace && level == logrus.WarnLevel:
-		_, err = r.Client.WarningStack(cause, trace, m)
+		_, err = r.Client.WarningStack(e, trace, m)
 	case level == logrus.FatalLevel || level == logrus.PanicLevel:
-		_, err = r.Client.Critical(cause, m)
+		_, err = r.Client.Critical(e, m)
 	case level == logrus.ErrorLevel:
-		_, err = r.Client.Error(cause, m)
+		_, err = r.Client.Error(e, m)
 	case level == logrus.WarnLevel:
-		_, err = r.Client.Warning(cause, m)
+		_, err = r.Client.Warning(e, m)
 	case level == logrus.InfoLevel:
 		_, err = r.Client.Info(entry.Message, m)
 	case level == logrus.DebugLevel:
