@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"runtime"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stvp/roll"
 )
@@ -23,6 +25,8 @@ var defaultTriggerLevels = []log.Level{
 	log.PanicLevel,
 }
 
+var MaxWorkers = runtime.NumCPU()
+
 // Hook wrapper for the rollbar Client
 // May be used as a rollbar client itself
 type Hook struct {
@@ -31,6 +35,8 @@ type Hook struct {
 	entries  chan *log.Entry
 	closed   chan struct{}
 	once     *sync.Once
+	wg       *sync.WaitGroup
+	pool     chan chan job
 }
 
 // Setup a new hook with default reporting levels, useful for adding to
@@ -42,15 +48,24 @@ func NewHook(token string, env string) *Hook {
 // Setup a new hook with specified reporting levels, useful for adding to
 // your own logger instance.
 func NewHookForLevels(token string, env string, levels []log.Level) *Hook {
+	numWorkers := MaxWorkers
 	h := &Hook{
 		Client:   roll.New(token, env),
 		triggers: levels,
 		closed:   make(chan struct{}),
 		entries:  make(chan *log.Entry, 100),
 		once:     new(sync.Once),
+		pool:     make(chan chan job, numWorkers),
+		wg:       new(sync.WaitGroup),
 	}
 
-	go h.sendToRollbar()
+	for i := 0; i < numWorkers; i++ {
+		h.wg.Add(1)
+		worker := newWorker(h.pool, h.closed, h.wg)
+		worker.Work()
+	}
+
+	go h.dispatch()
 
 	return h
 }
@@ -116,43 +131,23 @@ func (r *Hook) Fire(entry *log.Entry) (err error) {
 	return nil
 }
 
-func (r *Hook) sendToRollbar() {
-	defer close(r.closed)
+func (r *Hook) dispatch() {
 	for entry := range r.entries {
-		e := fmt.Errorf(entry.Message)
-		m := convertFields(entry.Data)
-		if _, exists := m["time"]; !exists {
-			m["time"] = entry.Time.Format(time.RFC3339)
-		}
-
-		var err error
-		switch entry.Level {
-		case log.FatalLevel, log.PanicLevel:
-			_, err = r.Client.Critical(e, m)
-		case log.ErrorLevel:
-			_, err = r.Client.Error(e, m)
-		case log.WarnLevel:
-			_, err = r.Client.Warning(e, m)
-		case log.InfoLevel:
-			_, err = r.Client.Info(entry.Message, m)
-		case log.DebugLevel:
-			_, err = r.Client.Debug(entry.Message, m)
-		default:
-			err = fmt.Errorf("Unknown level: %s", entry.Level)
-		}
-
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not send entry to rollbar: %v", err)
+		jobChannel := <-r.pool
+		jobChannel <- job{
+			client: r.Client,
+			entry:  entry,
 		}
 	}
 }
 
 func (r *Hook) Close() error {
 	r.once.Do(func() {
+		close(r.closed)
 		close(r.entries)
 	})
 
-	<-r.closed
+	r.wg.Wait()
 	return nil
 }
 
