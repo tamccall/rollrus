@@ -152,10 +152,8 @@ func (r *Hook) Close() error {
 		close(r.entries)
 	})
 
-	select {
-	case <-r.closed:
-		return nil
-	}
+	<-r.closed
+	return nil
 }
 
 // Levels returns the logrus log levels that this hook handles
