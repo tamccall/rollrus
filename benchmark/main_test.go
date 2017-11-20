@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
 )
 
 var token string
@@ -16,7 +17,6 @@ func TestMain(m *testing.M) {
 
 	os.Stderr = f
 	defer os.Remove(f.Name())
-
 	token = os.Getenv("ROLLBAR_TOKEN")
 
 	os.Exit(m.Run())

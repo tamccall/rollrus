@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"runtime"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stvp/roll"
 )
@@ -25,7 +23,7 @@ var defaultTriggerLevels = []log.Level{
 	log.PanicLevel,
 }
 
-var MaxWorkers = runtime.NumCPU()
+const defaultNumWorkers = 64
 
 // Hook wrapper for the rollbar Client
 // May be used as a rollbar client itself
@@ -48,7 +46,7 @@ func NewHook(token string, env string) *Hook {
 // Setup a new hook with specified reporting levels, useful for adding to
 // your own logger instance.
 func NewHookForLevels(token string, env string, levels []log.Level) *Hook {
-	numWorkers := MaxWorkers
+	numWorkers := defaultNumWorkers
 	h := &Hook{
 		Client:   roll.New(token, env),
 		triggers: levels,
