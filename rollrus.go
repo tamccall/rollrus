@@ -17,6 +17,12 @@ func (c noopCloser) Close() error {
 	return nil
 }
 
+type RollrusConfig struct {
+	BufferSize int
+	NumWorkers int
+	LogLevels []log.Level
+}
+
 var defaultTriggerLevels = []log.Level{
 	log.ErrorLevel,
 	log.FatalLevel,
@@ -24,6 +30,7 @@ var defaultTriggerLevels = []log.Level{
 }
 
 const defaultNumWorkers = 64
+const defaultBufferSize  = 100
 
 // Hook wrapper for the rollbar Client
 // May be used as a rollbar client itself
@@ -40,18 +47,30 @@ type Hook struct {
 // Setup a new hook with default reporting levels, useful for adding to
 // your own logger instance.
 func NewHook(token string, env string) *Hook {
-	return NewHookForLevels(token, env, defaultTriggerLevels)
+	return NewHookForLevels(token, env, RollrusConfig{})
 }
 
 // Setup a new hook with specified reporting levels, useful for adding to
 // your own logger instance.
-func NewHookForLevels(token string, env string, levels []log.Level) *Hook {
-	numWorkers := defaultNumWorkers
+func NewHookForLevels(token string, env string, config RollrusConfig) *Hook {
+	if len(config.LogLevels) == 0 {
+		config.LogLevels = defaultTriggerLevels
+	}
+
+	if config.BufferSize == 0 {
+		config.BufferSize = defaultBufferSize
+	}
+
+	if config.NumWorkers == 0 {
+		config.NumWorkers = defaultNumWorkers
+	}
+
+	numWorkers := config.NumWorkers
 	h := &Hook{
 		Client:   roll.New(token, env),
-		triggers: levels,
+		triggers: config.LogLevels,
 		closed:   make(chan struct{}),
-		entries:  make(chan *log.Entry, 100),
+		entries:  make(chan *log.Entry, config.BufferSize),
 		once:     new(sync.Once),
 		pool:     make(chan chan job, numWorkers),
 		wg:       new(sync.WaitGroup),
@@ -72,21 +91,21 @@ func NewHookForLevels(token string, env string, levels []log.Level) *Hook {
 // hook is added with the environment set to env. The log formatter is set to a
 // TextFormatter with timestamps disabled, which is suitable for use on Heroku.
 func SetupLogging(token, env string) io.Closer {
-	return setupLogging(token, env, defaultTriggerLevels)
+	return setupLogging(token, env, RollrusConfig{})
 }
 
 // SetupLoggingForLevels works like SetupLogging, but allows you to
 // set the levels on which to trigger this hook.
-func SetupLoggingForLevels(token, env string, levels []log.Level) io.Closer {
-	return setupLogging(token, env, levels)
+func SetupLoggingForLevels(token, env string, config RollrusConfig) io.Closer {
+	return setupLogging(token, env, config)
 }
 
-func setupLogging(token, env string, levels []log.Level) io.Closer {
+func setupLogging(token, env string, config RollrusConfig) io.Closer {
 	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
 
 	var closer io.Closer
 	if token != "" {
-		h := NewHookForLevels(token, env, levels)
+		h := NewHookForLevels(token, env, config)
 		log.AddHook(h)
 		closer = h
 	} else {
