@@ -1,10 +1,9 @@
-package benchmark
+package rollrus
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
-
 )
 
 var token string

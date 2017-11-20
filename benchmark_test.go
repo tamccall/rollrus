@@ -1,10 +1,9 @@
-package benchmark
+package rollrus
 
 import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/benjamindow/rollrus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +23,7 @@ func BenchmarkRollrusLogger(b *testing.B) {
 
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
-	hook := rollrus.NewHook(token, "test")
+	hook := NewHook(token, "test")
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
