@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -31,8 +32,8 @@ var defaultTriggerLevels = []log.Level{
 	log.PanicLevel,
 }
 
-const defaultNumWorkers = 64
-const defaultBufferSize = 100
+var defaultNumWorkers = 8 * runtime.NumCPU()
+var defaultBufferSize = 2 * defaultNumWorkers
 
 // Hook wrapper for the rollbar Client
 // May be used as a rollbar client itself

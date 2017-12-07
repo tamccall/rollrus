@@ -24,11 +24,9 @@ func (c *Buffer) Close() error {
 }
 
 func (c *Buffer) Next() bool {
-	select {
-	case next, ok := <-c.c:
-		c.value = next
-		return ok
-	}
+	next, ok := <-c.c
+	c.value = next
+	return ok
 }
 
 func (c *Buffer) Value() *logrus.Entry {
