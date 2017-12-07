@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benjamindow/rollrus/buffer"
+	"github.com/benjamindow/rollrus/buffer/channel"
 	log "github.com/sirupsen/logrus"
 	"github.com/stvp/roll"
 )
@@ -18,9 +20,9 @@ func (c noopCloser) Close() error {
 }
 
 type RollrusConfig struct {
-	BufferSize int
+	Buffer     buffer.Buffer
 	NumWorkers int
-	LogLevels []log.Level
+	LogLevels  []log.Level
 }
 
 var defaultTriggerLevels = []log.Level{
@@ -30,14 +32,14 @@ var defaultTriggerLevels = []log.Level{
 }
 
 const defaultNumWorkers = 64
-const defaultBufferSize  = 100
+const defaultBufferSize = 100
 
 // Hook wrapper for the rollbar Client
 // May be used as a rollbar client itself
 type Hook struct {
 	roll.Client
 	triggers []log.Level
-	entries  chan *log.Entry
+	entries  buffer.Buffer
 	closed   chan struct{}
 	once     *sync.Once
 	wg       *sync.WaitGroup
@@ -57,8 +59,8 @@ func NewHookForLevels(token string, env string, config RollrusConfig) *Hook {
 		config.LogLevels = defaultTriggerLevels
 	}
 
-	if config.BufferSize == 0 {
-		config.BufferSize = defaultBufferSize
+	if config.Buffer == nil {
+		config.Buffer = channel.NewBuffer(defaultBufferSize)
 	}
 
 	if config.NumWorkers == 0 {
@@ -70,7 +72,7 @@ func NewHookForLevels(token string, env string, config RollrusConfig) *Hook {
 		Client:   roll.New(token, env),
 		triggers: config.LogLevels,
 		closed:   make(chan struct{}),
-		entries:  make(chan *log.Entry, config.BufferSize),
+		entries:  config.Buffer,
 		once:     new(sync.Once),
 		pool:     make(chan chan job, numWorkers),
 		wg:       new(sync.WaitGroup),
@@ -138,18 +140,13 @@ func ReportPanic(token, env string) {
 // Fire the hook. This is called by Logrus for entries that match the levels
 // returned by Levels(). See below.
 func (r *Hook) Fire(entry *log.Entry) (err error) {
-	select {
-	case <-r.closed:
-		//do nothing
-	default:
-		r.entries <- entry
-	}
-
+	r.entries.Push(entry)
 	return nil
 }
 
 func (r *Hook) dispatch() {
-	for entry := range r.entries {
+	for r.entries.Next() {
+		entry := r.entries.Value()
 		jobChannel := <-r.pool
 		jobChannel <- job{
 			client: r.Client,
@@ -161,7 +158,7 @@ func (r *Hook) dispatch() {
 func (r *Hook) Close() error {
 	r.once.Do(func() {
 		close(r.closed)
-		close(r.entries)
+		r.entries.Close()
 	})
 
 	r.wg.Wait()
