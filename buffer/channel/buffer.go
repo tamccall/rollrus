@@ -34,9 +34,7 @@ func (c *Buffer) Value() *logrus.Entry {
 }
 
 func (c *Buffer) Push(entry *logrus.Entry) {
-	if c.closed {
-		// do nothing
-	} else {
+	if !c.closed {
 		c.c <- entry
 	}
 }
