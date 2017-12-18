@@ -17,6 +17,11 @@ type job struct {
 
 func (j job) sendToRollbar() {
 	entry := j.entry
+
+	if entry == nil {
+		return
+	}
+
 	e := fmt.Errorf(entry.Message)
 	m := convertFields(entry.Data)
 	if _, exists := m["time"]; !exists {
