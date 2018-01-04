@@ -2,12 +2,29 @@ package rollrus
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 
+	"github.com/benjamindow/rollrus/buffer"
+	"github.com/benjamindow/rollrus/buffer/channel"
 	log "github.com/sirupsen/logrus"
 	"github.com/stvp/roll"
 )
+
+type noopCloser struct{}
+
+func (c noopCloser) Close() error {
+	return nil
+}
+
+type RollrusConfig struct {
+	Buffer     buffer.Buffer
+	NumWorkers int
+	LogLevels  []log.Level
+}
 
 var defaultTriggerLevels = []log.Level{
 	log.ErrorLevel,
@@ -15,47 +32,90 @@ var defaultTriggerLevels = []log.Level{
 	log.PanicLevel,
 }
 
+var defaultNumWorkers = 8 * runtime.NumCPU()
+var defaultBufferSize = 2 * defaultNumWorkers
+
 // Hook wrapper for the rollbar Client
 // May be used as a rollbar client itself
 type Hook struct {
 	roll.Client
 	triggers []log.Level
+	entries  buffer.Buffer
+	closed   chan struct{}
+	once     *sync.Once
+	wg       *sync.WaitGroup
+	pool     chan chan job
 }
 
 // Setup a new hook with default reporting levels, useful for adding to
 // your own logger instance.
 func NewHook(token string, env string) *Hook {
-	return NewHookForLevels(token, env, defaultTriggerLevels)
+	return NewHookForLevels(token, env, RollrusConfig{})
 }
 
 // Setup a new hook with specified reporting levels, useful for adding to
 // your own logger instance.
-func NewHookForLevels(token string, env string, levels []log.Level) *Hook {
-	return &Hook{
-		Client:   roll.New(token, env),
-		triggers: levels,
+func NewHookForLevels(token string, env string, config RollrusConfig) *Hook {
+	if len(config.LogLevels) == 0 {
+		config.LogLevels = defaultTriggerLevels
 	}
+
+	if config.Buffer == nil {
+		config.Buffer = channel.NewBuffer(defaultBufferSize)
+	}
+
+	if config.NumWorkers == 0 {
+		config.NumWorkers = defaultNumWorkers
+	}
+
+	numWorkers := config.NumWorkers
+	h := &Hook{
+		Client:   roll.New(token, env),
+		triggers: config.LogLevels,
+		closed:   make(chan struct{}),
+		entries:  config.Buffer,
+		once:     new(sync.Once),
+		pool:     make(chan chan job, numWorkers),
+		wg:       new(sync.WaitGroup),
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		h.wg.Add(1)
+		worker := newWorker(h.pool, h.closed, h.wg)
+		worker.Work()
+	}
+
+	go h.dispatch()
+
+	return h
 }
 
 // SetupLogging sets up logging. If token is not an empty string a rollbar
 // hook is added with the environment set to env. The log formatter is set to a
 // TextFormatter with timestamps disabled, which is suitable for use on Heroku.
-func SetupLogging(token, env string) {
-	setupLogging(token, env, defaultTriggerLevels)
+func SetupLogging(token, env string) io.Closer {
+	return setupLogging(token, env, RollrusConfig{})
 }
 
 // SetupLoggingForLevels works like SetupLogging, but allows you to
 // set the levels on which to trigger this hook.
-func SetupLoggingForLevels(token, env string, levels []log.Level) {
-	setupLogging(token, env, levels)
+func SetupLoggingForLevels(token, env string, config RollrusConfig) io.Closer {
+	return setupLogging(token, env, config)
 }
 
-func setupLogging(token, env string, levels []log.Level) {
+func setupLogging(token, env string, config RollrusConfig) io.Closer {
 	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
 
+	var closer io.Closer
 	if token != "" {
-		log.AddHook(NewHookForLevels(token, env, levels))
+		h := NewHookForLevels(token, env, config)
+		log.AddHook(h)
+		closer = h
+	} else {
+		closer = noopCloser{}
 	}
+
+	return closer
 }
 
 // ReportPanic attempts to report the panic to rollbar using the provided
@@ -81,28 +141,29 @@ func ReportPanic(token, env string) {
 // Fire the hook. This is called by Logrus for entries that match the levels
 // returned by Levels(). See below.
 func (r *Hook) Fire(entry *log.Entry) (err error) {
-	e := fmt.Errorf(entry.Message)
-	m := convertFields(entry.Data)
-	if _, exists := m["time"]; !exists {
-		m["time"] = entry.Time.Format(time.RFC3339)
-	}
+	r.entries.Push(entry)
+	return nil
+}
 
-	switch entry.Level {
-	case log.FatalLevel, log.PanicLevel:
-		_, err = r.Client.Critical(e, m)
-	case log.ErrorLevel:
-		_, err = r.Client.Error(e, m)
-	case log.WarnLevel:
-		_, err = r.Client.Warning(e, m)
-	case log.InfoLevel:
-		_, err = r.Client.Info(entry.Message, m)
-	case log.DebugLevel:
-		_, err = r.Client.Debug(entry.Message, m)
-	default:
-		return fmt.Errorf("Unknown level: %s", entry.Level)
+func (r *Hook) dispatch() {
+	for r.entries.Next() {
+		entry := r.entries.Value()
+		jobChannel := <-r.pool
+		jobChannel <- job{
+			client: r.Client,
+			entry:  entry,
+		}
 	}
+}
 
-	return err
+func (r *Hook) Close() error {
+	r.once.Do(func() {
+		close(r.closed)
+		r.entries.Close()
+	})
+
+	r.wg.Wait()
+	return nil
 }
 
 // Levels returns the logrus log levels that this hook handles
