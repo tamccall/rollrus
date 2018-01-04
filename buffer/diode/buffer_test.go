@@ -1,8 +1,11 @@
+// +build go1.7
+
 package diode
 
 import (
-	"testing"
 	"io/ioutil"
+	"testing"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,18 +23,18 @@ func TestBuffer(t *testing.T) {
 
 	values := make([]int, 4)
 	i := 0
-	for b.Next()  {
+	for b.Next() {
 		entry := b.Value()
 		value, ok := entry.Data["value"]
 
 		if !ok {
-			t.Fatal("entry is missing value",)
+			t.Fatal("entry is missing value")
 		}
 
 		v, ok := value.(int)
 
 		if !ok {
-			t.Fatal("entry was not a int",)
+			t.Fatal("entry was not a int")
 		}
 
 		if i == 3 {
@@ -48,7 +51,7 @@ func TestBuffer(t *testing.T) {
 
 	for i, value := range values {
 		if value != i {
-			t.Fatalf("Value was not what we expected. Expected %d was %d", i , value)
+			t.Fatalf("Value was not what we expected. Expected %d was %d", i, value)
 		}
 	}
 
