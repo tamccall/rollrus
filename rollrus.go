@@ -2,6 +2,7 @@ package rollrus
 
 import (
 	"fmt"
+	"github.com/tamccall/rollrus/buffer/channel"
 	"io"
 	"os"
 	"runtime"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/benjamindow/rollrus/buffer"
-	"github.com/benjamindow/rollrus/buffer/channel"
 	log "github.com/sirupsen/logrus"
 	"github.com/stvp/roll"
 )
@@ -45,41 +45,49 @@ type Hook struct {
 	once     *sync.Once
 	wg       *sync.WaitGroup
 	pool     chan chan job
+	numWorkers int
+}
+
+type RollrusInitializer func(h *Hook)
+
+func WithBuffer(b buffer.Buffer) RollrusInitializer {
+	return func(h *Hook) {
+		h.entries = b
+	}
+}
+
+func WithLevels(l []log.Level) RollrusInitializer {
+	return func(h *Hook) {
+		h.triggers = l
+	}
+}
+
+func NumWorkers(n int) RollrusInitializer  {
+	return func(h *Hook) {
+		h.pool = make(chan chan job, n)
+		h.numWorkers = n
+	}
 }
 
 // Setup a new hook with default reporting levels, useful for adding to
 // your own logger instance.
-func NewHook(token string, env string) *Hook {
-	return NewHookForLevels(token, env, RollrusConfig{})
-}
-
-// Setup a new hook with specified reporting levels, useful for adding to
-// your own logger instance.
-func NewHookForLevels(token string, env string, config RollrusConfig) *Hook {
-	if len(config.LogLevels) == 0 {
-		config.LogLevels = defaultTriggerLevels
-	}
-
-	if config.Buffer == nil {
-		config.Buffer = channel.NewBuffer(defaultBufferSize)
-	}
-
-	if config.NumWorkers == 0 {
-		config.NumWorkers = defaultNumWorkers
-	}
-
-	numWorkers := config.NumWorkers
+func NewHook(token string, env string, r ...RollrusInitializer) *Hook {
 	h := &Hook{
 		Client:   roll.New(token, env),
-		triggers: config.LogLevels,
+		triggers: defaultTriggerLevels,
 		closed:   make(chan struct{}),
-		entries:  config.Buffer,
+		entries:  channel.NewBuffer(defaultBufferSize),
 		once:     new(sync.Once),
-		pool:     make(chan chan job, numWorkers),
+		pool:     make(chan chan job, defaultNumWorkers),
+		numWorkers: defaultNumWorkers,
 		wg:       new(sync.WaitGroup),
 	}
 
-	for i := 0; i < numWorkers; i++ {
+	for _, init := range r {
+		init(h)
+	}
+
+	for i := 0; i < h.numWorkers; i++ {
 		h.wg.Add(1)
 		worker := newWorker(h.pool, h.closed, h.wg)
 		worker.Work()
@@ -93,22 +101,12 @@ func NewHookForLevels(token string, env string, config RollrusConfig) *Hook {
 // SetupLogging sets up logging. If token is not an empty string a rollbar
 // hook is added with the environment set to env. The log formatter is set to a
 // TextFormatter with timestamps disabled, which is suitable for use on Heroku.
-func SetupLogging(token, env string) io.Closer {
-	return setupLogging(token, env, RollrusConfig{})
-}
-
-// SetupLoggingForLevels works like SetupLogging, but allows you to
-// set the levels on which to trigger this hook.
-func SetupLoggingForLevels(token, env string, config RollrusConfig) io.Closer {
-	return setupLogging(token, env, config)
-}
-
-func setupLogging(token, env string, config RollrusConfig) io.Closer {
+func SetupLogging(token, env string, h ...RollrusInitializer) io.Closer {
 	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
 
 	var closer io.Closer
 	if token != "" {
-		h := NewHookForLevels(token, env, config)
+		h := NewHook(token, env, h...)
 		log.AddHook(h)
 		closer = h
 	} else {

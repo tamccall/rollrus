@@ -3,11 +3,11 @@
 package rollrus
 
 import (
+	"github.com/tamccall/rollrus/buffer/diode"
 	"io/ioutil"
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/tamccall/rollrus/buffer/diode"
 )
 
 const (
@@ -45,11 +45,7 @@ func BenchmarkWithDiodeBuffer(b *testing.B) {
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
 
-	//TODO: probably should rename this. Maybe drop the new hook for levels since it takes a config now
-
-	hook := NewHookForLevels(token, env, RollrusConfig{
-		Buffer: diode.NewBuffer(defaultBufferSize),
-	})
+	hook := NewHook(token, env, WithBuffer(diode.NewBuffer(defaultBufferSize)))
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
