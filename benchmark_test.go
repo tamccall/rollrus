@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/benjamindow/rollrus/buffer/diode"
 	"github.com/sirupsen/logrus"
+	"github.com/tamccall/rollrus/buffer/diode"
 )
 
 const (
@@ -19,9 +19,7 @@ func BenchmarkVanillaLogger(b *testing.B) {
 	vanillaLogger := logrus.New()
 	vanillaLogger.Out = ioutil.Discard
 
-	for i := 0; i < b.N; i++ {
-		vanillaLogger.Error(errorMSG)
-	}
+	runBenchmark(b, vanillaLogger)
 }
 
 func BenchmarkWithChannelBuffer(b *testing.B) {
@@ -36,9 +34,7 @@ func BenchmarkWithChannelBuffer(b *testing.B) {
 
 	rollrusLogger.AddHook(hook)
 
-	for i := 0; i < b.N; i++ {
-		rollrusLogger.Error(errorMSG)
-	}
+	runBenchmark(b, rollrusLogger)
 }
 
 func BenchmarkWithDiodeBuffer(b *testing.B) {
@@ -58,6 +54,10 @@ func BenchmarkWithDiodeBuffer(b *testing.B) {
 
 	rollrusLogger.AddHook(hook)
 
+	runBenchmark(b, rollrusLogger)
+}
+
+func runBenchmark(b *testing.B, rollrusLogger *logrus.Logger) {
 	for i := 0; i < b.N; i++ {
 		rollrusLogger.Error(errorMSG)
 	}
