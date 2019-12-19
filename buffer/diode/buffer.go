@@ -5,7 +5,6 @@ package diode
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/cloudfoundry/go-diodes"
@@ -40,24 +39,8 @@ func (c *Buffer) Close() error {
 	return nil
 }
 
-func (c *Buffer) Next() bool {
-	select {
-	case <-c.closed:
-		return false
-	default:
-		return true
-	}
-}
-
-func (c *Buffer) Value() *logrus.Entry {
+func (c *Buffer) Next() *logrus.Entry {
 	val := c.waiter.Next()
-
-	if val == nil {
-		dummyLogger := logrus.New()
-		dummyLogger.Out = ioutil.Discard
-		return logrus.NewEntry(dummyLogger)
-	}
-
 	return (*logrus.Entry)(val)
 }
 

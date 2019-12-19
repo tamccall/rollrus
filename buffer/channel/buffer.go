@@ -23,14 +23,8 @@ func (c *Buffer) Close() error {
 	return nil
 }
 
-func (c *Buffer) Next() bool {
-	next, ok := <-c.c
-	c.value = next
-	return ok
-}
-
-func (c *Buffer) Value() *logrus.Entry {
-	return c.value
+func (c *Buffer) Next() *logrus.Entry {
+	return <- c.c
 }
 
 func (c *Buffer) Push(entry *logrus.Entry) {

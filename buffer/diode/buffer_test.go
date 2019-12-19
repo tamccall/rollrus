@@ -23,8 +23,7 @@ func TestBuffer(t *testing.T) {
 
 	values := make([]int, 4)
 	i := 0
-	for b.Next() {
-		entry := b.Value()
+	for entry := b.Next(); entry != nil; entry = b.Next() {
 		value, ok := entry.Data["value"]
 
 		if !ok {

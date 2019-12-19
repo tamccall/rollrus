@@ -16,7 +16,7 @@ func TestBuffer(t *testing.T) {
 	}
 
 	outCount := 0
-	for b.Next()  {
+	for entry := b.Next(); entry != nil; entry = b.Next()  {
 		if outCount == 2 {
 			b.Close()
 		}

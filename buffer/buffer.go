@@ -8,7 +8,6 @@ import (
 
 type Buffer interface {
 	io.Closer
-	Next() bool
+	Next() *logrus.Entry
 	Push(entry *logrus.Entry)
-	Value() *logrus.Entry
 }
