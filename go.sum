@@ -1,3 +1,5 @@
+github.com/cloudfoundry/go-diodes v0.0.0-20190809170250-f77fb823c7ee h1:a0i2U/BTd4iH6szrSNLBaM+pOj6FcI3WPacVhyLMOGs=
+github.com/cloudfoundry/go-diodes v0.0.0-20190809170250-f77fb823c7ee/go.mod h1:p2SBFb1rHYyh0pZOKV97Rl+O78rEGMfCxSPkEyKmFRM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
