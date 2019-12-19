@@ -1,6 +1,9 @@
 package rollrus
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+	"github.com/tamccall/rollrus/buffer"
+)
 
 // OptionFunc that can be passed to NewHook.
 type OptionFunc func(*Hook)
@@ -25,6 +28,12 @@ func WithMinLevel(level logrus.Level) OptionFunc {
 
 	return func(h *Hook) {
 		h.triggers = levels
+	}
+}
+
+func WithBuffer( buff buffer.Buffer) OptionFunc {
+	return func(hook *Hook) {
+		// TODO: actually implement this
 	}
 }
 

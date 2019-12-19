@@ -4,6 +4,7 @@ package rollrus
 
 import (
 	"github.com/tamccall/rollrus"
+	"github.com/tamccall/rollrus/buffer/diode"
 	"io/ioutil"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 const (
 	env      = "test"
 	errorMSG = "test"
+	bufferSize = 100
 )
 
 func BenchmarkVanillaLogger(b *testing.B) {
@@ -37,21 +39,21 @@ func BenchmarkWithChannelBuffer(b *testing.B) {
 	runBenchmark(b, rollrusLogger)
 }
 
-//func BenchmarkWithDiodeBuffer(b *testing.B) {
-//	if token == "" {
-//		b.Skip("Could not get rollbar token")
-//	}
-//
-//	rollrusLogger := logrus.New()
-//	rollrusLogger.Out = ioutil.Discard
-//
-//	hook := rollrus.NewHook(token, env, WithBuffer(diode.NewBuffer(defaultBufferSize)))
-//	defer hook.Close()
-//
-//	rollrusLogger.AddHook(hook)
-//
-//	runBenchmark(b, rollrusLogger)
-//}
+func BenchmarkWithDiodeBuffer(b *testing.B) {
+	if token == "" {
+		b.Skip("Could not get rollbar token")
+	}
+
+	rollrusLogger := logrus.New()
+	rollrusLogger.Out = ioutil.Discard
+
+	hook := rollrus.NewHook(token, env, rollrus.WithBuffer(diode.NewBuffer(bufferSize)))
+	defer hook.Close()
+
+	rollrusLogger.AddHook(hook)
+
+	runBenchmark(b, rollrusLogger)
+}
 
 func runBenchmark(b *testing.B, rollrusLogger *logrus.Logger) {
 	for i := 0; i < b.N; i++ {
