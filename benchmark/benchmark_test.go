@@ -8,6 +8,7 @@ import (
 	"github.com/tamccall/rollrus/buffer/channel"
 	"github.com/tamccall/rollrus/buffer/diode"
 	"io/ioutil"
+	"math"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ import (
 const (
 	env      = "test"
 	errorMSG = "test"
-	bufferSize = 100
+	bufferSize = 50
 )
 
 func BenchmarkVanillaLogger(b *testing.B) {
@@ -89,6 +90,8 @@ func skipIfTokenEmpty(b *testing.B) {
 }
 
 func runBenchmark(b *testing.B, rollrusLogger *logrus.Logger) {
+	floatN :=  math.Min(float64(b.N), 100)
+	b.N = int(floatN)
 	for i := 0; i < b.N; i++ {
 		rollrusLogger.Error(errorMSG)
 	}
