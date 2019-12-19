@@ -143,7 +143,7 @@ func TestExtractErrorFromStackTracer(t *testing.T) {
 
 func TestTriggerLevels(t *testing.T) {
 	client := rollbar.New("", "testing", "", "", "")
-	underTest := &Hook{Client: client}
+	underTest := &Hook{client: client}
 	if !reflect.DeepEqual(underTest.Levels(), defaultTriggerLevels) {
 		t.Fatal("Expected Levels() to return defaultTriggerLevels")
 	}
