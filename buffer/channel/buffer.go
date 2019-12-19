@@ -2,6 +2,7 @@ package channel
 
 import (
 	"github.com/sirupsen/logrus"
+	"github.com/tamccall/rollrus/buffer"
 )
 
 func NewBuffer(size int) *Buffer {
@@ -32,3 +33,5 @@ func (c *Buffer) Push(entry *logrus.Entry) {
 		c.c <- entry
 	}
 }
+
+var _ buffer.Buffer = (*Buffer)(nil)

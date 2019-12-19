@@ -5,6 +5,7 @@ package diode
 import (
 	"context"
 	"fmt"
+	"github.com/tamccall/rollrus/buffer"
 	"os"
 
 	"github.com/cloudfoundry/go-diodes"
@@ -52,3 +53,5 @@ func (c *Buffer) Push(entry *logrus.Entry) {
 		c.waiter.Set(diodes.GenericDataType(entry))
 	}
 }
+
+var _ buffer.Buffer = (*Buffer)(nil)

@@ -38,6 +38,19 @@ func BenchmarkWithHerokuLogger(b *testing.B) {
 	runBenchmark(b, rollrusLogger)
 }
 
+func BenchmarkWithTamccallLoggerSingleConsumer(b *testing.B) {
+	skipIfTokenEmpty(b)
+
+	rollrusLogger := logrus.New()
+	rollrusLogger.Out = ioutil.Discard
+	hook := rollrus.NewHook(token, env)
+	defer hook.Close()
+
+	rollrusLogger.AddHook(hook)
+
+	runBenchmark(b, rollrusLogger)
+}
+
 func BenchmarkWithDiodeBuffer(b *testing.B) {
 	skipIfTokenEmpty(b)
 
