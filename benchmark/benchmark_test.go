@@ -3,6 +3,7 @@
 package rollrus
 
 import (
+	"github.com/tamccall/rollrus"
 	"github.com/tamccall/rollrus/buffer/diode"
 	"io/ioutil"
 	"testing"
@@ -29,7 +30,7 @@ func BenchmarkWithChannelBuffer(b *testing.B) {
 
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
-	hook := NewHook(token, env)
+	hook := rollrus.NewHook(token, env)
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
@@ -45,7 +46,7 @@ func BenchmarkWithDiodeBuffer(b *testing.B) {
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
 
-	hook := NewHook(token, env, WithBuffer(diode.NewBuffer(defaultBufferSize)))
+	hook := rollrus.NewHook(token, env, WithBuffer(diode.NewBuffer(defaultBufferSize)))
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
