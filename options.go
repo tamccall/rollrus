@@ -33,7 +33,7 @@ func WithMinLevel(level logrus.Level) OptionFunc {
 
 func WithBuffer( buff buffer.Buffer) OptionFunc {
 	return func(hook *Hook) {
-		// TODO: actually implement this
+		hook.buffer = buff
 	}
 }
 
