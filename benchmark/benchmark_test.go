@@ -25,9 +25,7 @@ func BenchmarkVanillaLogger(b *testing.B) {
 }
 
 func BenchmarkWithChannelBuffer(b *testing.B) {
-	if token == "" {
-		b.Skip("Could not get rollbar token")
-	}
+	skipIfTokenEmpty(b)
 
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
@@ -40,9 +38,7 @@ func BenchmarkWithChannelBuffer(b *testing.B) {
 }
 
 func BenchmarkWithDiodeBuffer(b *testing.B) {
-	if token == "" {
-		b.Skip("Could not get rollbar token")
-	}
+	skipIfTokenEmpty(b)
 
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
@@ -53,6 +49,12 @@ func BenchmarkWithDiodeBuffer(b *testing.B) {
 	rollrusLogger.AddHook(hook)
 
 	runBenchmark(b, rollrusLogger)
+}
+
+func skipIfTokenEmpty(b *testing.B) {
+	if token == "" {
+		b.Skip("Could not get rollbar token")
+	}
 }
 
 func runBenchmark(b *testing.B, rollrusLogger *logrus.Logger) {
