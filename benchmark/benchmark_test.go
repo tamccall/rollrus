@@ -5,6 +5,7 @@ package rollrus
 import (
 	heroku "github.com/heroku/rollrus"
 	"github.com/tamccall/rollrus"
+	"github.com/tamccall/rollrus/buffer/channel"
 	"github.com/tamccall/rollrus/buffer/diode"
 	"io/ioutil"
 	"testing"
@@ -44,6 +45,21 @@ func BenchmarkWithTamccallLoggerSingleConsumer(b *testing.B) {
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
 	hook := rollrus.NewHook(token, env)
+	defer hook.Close()
+
+	rollrusLogger.AddHook(hook)
+
+	runBenchmark(b, rollrusLogger)
+}
+
+func BenchmarkWithChannelLogger(b *testing.B) {
+	skipIfTokenEmpty(b)
+
+	rollrusLogger := logrus.New()
+	rollrusLogger.Out = ioutil.Discard
+
+	buffer := channel.NewBuffer(bufferSize)
+	hook := rollrus.NewHook(token, env, rollrus.WithBuffer(buffer))
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
