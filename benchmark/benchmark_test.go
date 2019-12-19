@@ -3,6 +3,7 @@
 package rollrus
 
 import (
+	heroku "github.com/heroku/rollrus"
 	"github.com/tamccall/rollrus"
 	"github.com/tamccall/rollrus/buffer/diode"
 	"io/ioutil"
@@ -24,12 +25,12 @@ func BenchmarkVanillaLogger(b *testing.B) {
 	runBenchmark(b, vanillaLogger)
 }
 
-func BenchmarkWithChannelBuffer(b *testing.B) {
+func BenchmarkWithHerokuLogger(b *testing.B) {
 	skipIfTokenEmpty(b)
 
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
-	hook := rollrus.NewHook(token, env)
+	hook := heroku.NewHook(token, env)
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
@@ -43,7 +44,8 @@ func BenchmarkWithDiodeBuffer(b *testing.B) {
 	rollrusLogger := logrus.New()
 	rollrusLogger.Out = ioutil.Discard
 
-	hook := rollrus.NewHook(token, env, rollrus.WithBuffer(diode.NewBuffer(bufferSize)))
+	buffer := diode.NewBuffer(bufferSize)
+	hook := rollrus.NewHook(token, env, rollrus.WithBuffer(buffer))
 	defer hook.Close()
 
 	rollrusLogger.AddHook(hook)
